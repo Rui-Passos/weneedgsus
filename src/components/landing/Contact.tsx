@@ -34,7 +34,13 @@ const Contact = () => {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.from("contact_submissions").insert(parsed.data);
+    const { error } = await supabase.from("contact_submissions").insert({
+      name: parsed.data.name,
+      phone: parsed.data.phone,
+      pet_type: parsed.data.pet_type,
+      dates: parsed.data.dates,
+      message: parsed.data.message,
+    });
     setLoading(false);
     if (error) {
       toast({ title: "Erro ao enviar", description: error.message, variant: "destructive" });
