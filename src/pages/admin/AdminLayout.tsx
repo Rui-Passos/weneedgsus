@@ -13,12 +13,13 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { Image, FileText, MessageSquare, LogOut, PawPrint, Home } from "lucide-react";
+import { Image, FileText, MessageSquare, LogOut, PawPrint, Home, User } from "lucide-react";
 
 const items = [
   { title: "Galeria", url: "/admin/gallery", icon: Image },
   { title: "Conteúdos", url: "/admin/content", icon: FileText },
   { title: "Mensagens", url: "/admin/messages", icon: MessageSquare },
+  { title: "Conta", url: "/admin/account", icon: User },
 ];
 
 const AdminLayout = () => {
