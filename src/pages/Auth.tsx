@@ -1,12 +1,11 @@
 import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate, Link } from "react-router-dom";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { PawPrint } from "lucide-react";
 
@@ -23,7 +22,7 @@ const Auth = () => {
   if (loading) return null;
   if (user) return <Navigate to="/admin" replace />;
 
-  const submit = async (e: React.FormEvent<HTMLFormElement>, mode: "login" | "signup") => {
+  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const parsed = schema.safeParse({ email: fd.get("email"), password: fd.get("password") });
@@ -32,24 +31,13 @@ const Auth = () => {
       return;
     }
     setBusy(true);
-    if (mode === "signup") {
-      const { error } = await supabase.auth.signUp({
-        email: parsed.data.email,
-        password: parsed.data.password,
-        options: { emailRedirectTo: `${window.location.origin}/admin` },
-      });
-      setBusy(false);
-      if (error) return toast({ title: "Erro no registo", description: error.message, variant: "destructive" });
-      toast({ title: "Conta criada!", description: "Pode fazer login agora." });
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: parsed.data.email,
-        password: parsed.data.password,
-      });
-      setBusy(false);
-      if (error) return toast({ title: "Erro no login", description: error.message, variant: "destructive" });
-      navigate("/admin");
-    }
+    const { error } = await supabase.auth.signInWithPassword({
+      email: parsed.data.email,
+      password: parsed.data.password,
+    });
+    setBusy(false);
+    if (error) return toast({ title: "Erro no login", description: error.message, variant: "destructive" });
+    navigate("/admin");
   };
 
   return (
@@ -62,29 +50,24 @@ const Auth = () => {
           <h1 className="text-2xl font-bold">Painel Admin</h1>
           <p className="text-sm text-muted-foreground">João de Deus Pet Sitter</p>
         </div>
-        <Tabs defaultValue="login">
-          <TabsList className="grid grid-cols-2 w-full rounded-full">
-            <TabsTrigger value="login" className="rounded-full">Entrar</TabsTrigger>
-            <TabsTrigger value="signup" className="rounded-full">Criar conta</TabsTrigger>
-          </TabsList>
-          {(["login", "signup"] as const).map((mode) => (
-            <TabsContent key={mode} value={mode}>
-              <form onSubmit={(e) => submit(e, mode)} className="space-y-4 mt-4">
-                <div className="space-y-2">
-                  <Label htmlFor={`${mode}-email`}>Email</Label>
-                  <Input id={`${mode}-email`} name="email" type="email" required className="rounded-xl" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor={`${mode}-pw`}>Palavra-passe</Label>
-                  <Input id={`${mode}-pw`} name="password" type="password" required minLength={6} className="rounded-xl" />
-                </div>
-                <Button type="submit" disabled={busy} className="w-full rounded-full">
-                  {busy ? "..." : mode === "login" ? "Entrar" : "Criar conta"}
-                </Button>
-              </form>
-            </TabsContent>
-          ))}
-        </Tabs>
+        <form onSubmit={submit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input id="email" name="email" type="email" required className="rounded-xl" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="password">Palavra-passe</Label>
+            <Input id="password" name="password" type="password" required minLength={6} className="rounded-xl" />
+          </div>
+          <Button type="submit" disabled={busy} className="w-full rounded-full">
+            {busy ? "..." : "Entrar"}
+          </Button>
+          <div className="text-center">
+            <Link to="/forgot-password" className="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline">
+              Esqueci-me da palavra-passe
+            </Link>
+          </div>
+        </form>
       </div>
     </div>
   );
