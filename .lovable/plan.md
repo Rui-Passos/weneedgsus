@@ -1,93 +1,78 @@
-# CMS com Admin para o site do João de Deus
 
-## Objetivo
-Criar um painel `/admin` protegido por login onde só utilizadores com role `admin` conseguem gerir:
-- Fotos e vídeos da galeria (upload, editar legenda, reordenar, apagar)
-- Textos editáveis das secções (Hero, Sobre, Serviços, etc.)
-- Pedidos de contacto recebidos (ver lista)
+## 1. Tornar o seu acesso admin (passos.rui@gmail.com)
 
-## Arquitectura de Segurança
+Crio a sua conta e atribuo o role `admin` por SQL diretamente:
+- Cria utilizador `passos.rui@gmail.com` em `auth.users` com email já confirmado e palavra-passe inicial **temporária** que vou pedir-lhe para definir no próximo passo (ver questão abaixo).
+- Insere linha em `public.user_roles` com role `admin`.
 
-Vou usar o padrão recomendado de **roles em tabela separada** (nunca no profile) para evitar escalada de privilégios:
+Assim que entrar pela primeira vez, deve trocar a password (ver ponto 3).
 
-- `profiles` — dados básicos do utilizador
-- `user_roles` — atribuição de roles (`admin`, `user`) com enum `app_role`
-- Função `has_role(user_id, role)` SECURITY DEFINER para usar em RLS sem recursão
-- Trigger automático cria profile no signup
-- **Signup público fica desativado** — só o primeiro utilizador (seed) ou um admin existente pode promover outros a admin (via SQL/painel)
+## 2. Endurecer a segurança (corrigir os 7 avisos do scan)
 
-## Mudanças na Base de Dados
+Atualmente o site **funciona**, mas o scan revelou pontos a apertar antes de partilhar. Faço uma migração que resolve tudo:
 
-1. Enum `app_role` (`admin`, `user`)
-2. Tabela `profiles` (id → auth.users, email, display_name)
-3. Tabela `user_roles` (user_id, role)
-4. Função `has_role()` SECURITY DEFINER
-5. Trigger `handle_new_user` para auto-criar profile
-6. Nova tabela `site_content` — chave/valor JSON com textos editáveis por secção (`hero`, `about`, `services`, `instagram`, `contact`)
-   - RLS: leitura pública, escrita só admin
-7. Atualizar RLS de `gallery_items` — escrita restringida a `admin` (em vez de qualquer authenticated)
-8. Adicionar RLS de leitura em `contact_submissions` — só admin pode ver
-9. RLS em storage bucket `gallery` — upload/delete só admin
+| Problema | Correção |
+|---|---|
+| Qualquer utilizador autenticado podia inserir-se a si próprio como `admin` (escalada de privilégios) | Adicionar política `INSERT/UPDATE/DELETE` em `user_roles` que exige `has_role(auth.uid(),'admin')`. Primeiro admin é semeado por SQL (ponto 1), nunca pela API. |
+| Signup público aberto (qualquer pessoa cria conta) | Desativar signup público em `Auth → Providers` e **remover o tab "Criar conta"** da página `/auth`. Só admins criam novos utilizadores. |
+| Bucket `gallery` permite listar todos os ficheiros | Manter leitura pública dos URLs (necessária para a galeria) mas remover a policy de LIST; INSERT/UPDATE/DELETE no bucket só para admin. |
+| `has_role` e `handle_new_user` executáveis por anónimos | `REVOKE EXECUTE ... FROM anon, authenticated` e conceder só a `service_role` / uso interno em policies. |
+| Política `INSERT` em `contact_submissions` com `WITH CHECK (true)` | Manter (é intencional — formulário público). Adicionar à *security memory* como risco aceite e proteger com **rate limiting** simples (limite por IP via edge function opcional, ou pelo menos validação Zod já existente + honeypot field). |
 
-## Autenticação
+## 3. Fluxo de Password completo
 
-- Página `/auth` com login email+password (sem signup público)
-- Hook `useAuth` com listener `onAuthStateChange` + `getSession`
-- Hook `useIsAdmin` consulta `user_roles`
-- Componente `AdminRoute` que redireciona não-admins para `/auth`
-- `emailRedirectTo` configurado e auto-confirm activado para evitar fricção (o utilizador é só o João)
+### a) Definir password inicial
+- Página `/auth` mostra apenas **Login** (sem criar conta).
+- Adiciono link **"Esqueci-me da palavra-passe"**.
 
-## Painel `/admin`
+### b) Recuperar password (esqueci-me)
+- Nova página `/forgot-password`: formulário com email → `supabase.auth.resetPasswordForEmail(email, { redirectTo: <site>/reset-password })`.
+- Nova página `/reset-password` (rota pública): deteta sessão de recovery, mostra campo "nova password" + confirmação, chama `supabase.auth.updateUser({ password })`, redireciona para `/admin`.
 
-Layout com sidebar (Shadcn) e 4 secções:
+### c) Alterar password estando autenticado
+- Nova secção no painel admin: **`/admin/account`** com:
+  - Mostra email atual.
+  - Formulário "Alterar password" (password atual → nova → confirmar). Usa `supabase.auth.updateUser({ password })`.
+  - Botão "Terminar sessão em todos os dispositivos" (`signOut({ scope: 'global' })`).
+- Adicionar item "Conta" na sidebar admin.
+
+### d) (Opcional, recomendado) Proteção contra passwords fracas
+- Ativar **leaked password protection (HIBP)** via `configure_auth` — bloqueia passwords comprovadamente expostas em fugas.
+
+## 4. Demonstração para o João
+
+Sugestão recomendada: **link "Share preview"** do Lovable.
+
+- Vou ao botão **Share → Share preview** no topo do editor → gera um link público válido **7 dias**, sem precisar de conta Lovable. Ideal para enviar pelo Instagram/WhatsApp.
+- O João abre no telemóvel, navega no site real, e envia-lhe sugestões.
+- O `/admin` continua protegido por login, por isso ele só vê a parte pública.
+
+Alternativas, caso queira algo mais permanente:
+- **Publicar** (botão Publish) → fica em `xxx.lovable.app` para sempre. Mais profissional mas qualquer pessoa pode encontrar (mesmo sem partilhar). Recomendo só depois de o João aprovar.
+- **Domínio próprio** (ex: `joaodedeus-petsitter.pt`) — comprável dentro do Lovable depois de publicar.
+
+Posso também preparar uma **mensagem-template** em português para enviar ao João via DM no Instagram.
+
+## 5. Resposta direta — "o site fica seguro?"
+
+Depois das correções acima: **sim, para o caso de uso** (site institucional com painel admin para 1 pessoa). Pontos garantidos:
+- Só `passos.rui@gmail.com` consegue entrar no `/admin`.
+- Ninguém pode auto-promover-se a admin.
+- Mensagens de contacto só visíveis ao admin.
+- Galeria e textos só editáveis pelo admin.
+- Passwords protegidas pelo Supabase (bcrypt) + opcionalmente HIBP.
+- Sem signup público.
+
+O único dado público escrito por estranhos é o **formulário de contacto** (intencional). Adicionamos validação + (opcional) honeypot anti-bot.
+
+---
+
+### Decisões que preciso de si antes de implementar:
 
 ```text
-┌─────────────────────────────────────┐
-│ Sidebar         │  Conteúdo         │
-│  • Galeria      │                   │
-│  • Conteúdos    │                   │
-│  • Mensagens    │                   │
-│  • Sair         │                   │
-└─────────────────────────────────────┘
+1. Password inicial: prefere…
+   a) Eu defino uma temporária (ex: "PetSitter2026!") e troca no 1º login
+   b) Não criar password — envio-lhe email de "definir password" para escolher logo a sua
+2. Ativar HIBP (bloqueia passwords vazadas)? Sim/Não
+3. Quer já que prepare a mensagem para enviar ao João pelo Instagram?
 ```
-
-### Galeria (`/admin/gallery`)
-- Upload drag-and-drop para o bucket `gallery` (imagens e vídeos)
-- Grelha com preview, campo de legenda editável, botão apagar
-- Reordenar via campo `display_order`
-
-### Conteúdos (`/admin/content`)
-- Formulário com campos para cada texto editável:
-  - Hero: título, subtítulo, texto do botão
-  - Sobre: título, parágrafos
-  - Serviços: título de cada card, descrição
-  - Instagram: handle, descrição
-- Guarda em `site_content` (linha por chave)
-
-### Mensagens (`/admin/messages`)
-- Tabela com pedidos de contacto recebidos (nome, telefone, tipo de pet, datas, mensagem, data)
-- Ordenado por mais recente
-
-## Frontend Público
-- Componentes da landing passam a ler `site_content` via `useQuery` com fallback para os textos atuais (para nada partir se a tabela estiver vazia)
-- A galeria já lê do Supabase, fica igual
-
-## Setup do primeiro Admin
-Depois de aplicar a migração, o utilizador cria a sua conta em `/auth` (vou activar signup temporariamente apenas até existir o primeiro admin — alternativa: pedir email e promover via SQL). Recomendo:
-1. Ativar auto-confirm de email
-2. Mostrar `/auth` com formulário de signup+login
-3. Após o João criar conta, corro SQL para lhe atribuir role `admin`
-4. (Opcional futuro) Desactivar signup público
-
-## Stack Técnica
-- Shadcn: Sidebar, Form, Table, Dialog, Tabs, Input, Textarea, Button
-- React Router: rotas `/auth`, `/admin`, `/admin/gallery`, `/admin/content`, `/admin/messages`
-- React Query para data fetching e cache
-- Zod para validação
-- Toast para feedback
-
-## Ficheiros a criar
-- `src/hooks/useAuth.tsx`, `src/hooks/useIsAdmin.tsx`
-- `src/pages/Auth.tsx`, `src/pages/admin/AdminLayout.tsx`, `AdminGallery.tsx`, `AdminContent.tsx`, `AdminMessages.tsx`
-- `src/components/admin/AdminSidebar.tsx`, `ProtectedRoute.tsx`
-- Migração SQL com tudo acima
