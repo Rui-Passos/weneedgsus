@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -15,20 +15,78 @@ const schema = z
   })
   .refine((d) => d.password === d.confirm, { message: "As palavras-passe não coincidem", path: ["confirm"] });
 
+type Status = "validating" | "ready" | "error";
+
 const ResetPassword = () => {
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
-  const [ready, setReady] = useState(false);
+  const [status, setStatus] = useState<Status>("validating");
+  const [errorMsg, setErrorMsg] = useState<string>("");
 
   useEffect(() => {
-    // Supabase coloca a sessão de recovery automaticamente a partir do hash da URL
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") setReady(true);
-    });
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setReady(true);
-    });
-    return () => sub.subscription.unsubscribe();
+    let cancelled = false;
+
+    const init = async () => {
+      try {
+        const url = new URL(window.location.href);
+        const hash = window.location.hash.startsWith("#")
+          ? window.location.hash.slice(1)
+          : window.location.hash;
+        const hashParams = new URLSearchParams(hash);
+
+        const code = url.searchParams.get("code");
+        const errorDesc =
+          url.searchParams.get("error_description") || hashParams.get("error_description");
+        const accessToken = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token");
+
+        if (errorDesc) {
+          throw new Error(errorDesc);
+        }
+
+        // PKCE flow (?code=...)
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+        } else if (accessToken && refreshToken) {
+          // Implicit flow (#access_token=...&refresh_token=...)
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (error) throw error;
+        }
+
+        // Limpar URL para evitar reprocessamento
+        window.history.replaceState({}, "", window.location.pathname);
+
+        // Verificar sessão (poll curto)
+        let session = (await supabase.auth.getSession()).data.session;
+        for (let i = 0; i < 10 && !session && !cancelled; i++) {
+          await new Promise((r) => setTimeout(r, 200));
+          session = (await supabase.auth.getSession()).data.session;
+        }
+
+        if (cancelled) return;
+
+        if (!session) {
+          throw new Error(
+            "Link inválido ou expirado. Peça um novo email de recuperação."
+          );
+        }
+
+        setStatus("ready");
+      } catch (e: any) {
+        if (cancelled) return;
+        setErrorMsg(e?.message ?? "Não foi possível validar o link.");
+        setStatus("error");
+      }
+    };
+
+    init();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -56,9 +114,21 @@ const ResetPassword = () => {
           </div>
           <h1 className="text-2xl font-bold">Nova palavra-passe</h1>
         </div>
-        {!ready ? (
+
+        {status === "validating" && (
           <p className="text-center text-sm text-muted-foreground">A validar link...</p>
-        ) : (
+        )}
+
+        {status === "error" && (
+          <div className="space-y-4 text-center">
+            <p className="text-sm text-destructive">{errorMsg}</p>
+            <Button asChild variant="outline" className="rounded-full">
+              <Link to="/forgot-password">Pedir novo link</Link>
+            </Button>
+          </div>
+        )}
+
+        {status === "ready" && (
           <form onSubmit={submit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="password">Nova palavra-passe</Label>
