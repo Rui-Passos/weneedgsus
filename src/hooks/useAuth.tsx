@@ -29,16 +29,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(s);
       setUser(s?.user ?? null);
       if (s?.user) {
-        setTimeout(() => checkAdmin(s.user.id), 0);
+        setLoading(true);
+        setTimeout(() => {
+          checkAdmin(s.user.id).finally(() => setLoading(false));
+        }, 0);
       } else {
         setIsAdmin(false);
+        setLoading(false);
       }
     });
 
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
+    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
       setSession(s);
       setUser(s?.user ?? null);
-      if (s?.user) checkAdmin(s.user.id);
+      if (s?.user) await checkAdmin(s.user.id);
       setLoading(false);
     });
 
