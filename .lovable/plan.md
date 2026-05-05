@@ -1,78 +1,54 @@
+## Problema
 
-## 1. Tornar o seu acesso admin (passos.rui@gmail.com)
+A página `/reset-password` fica eternamente em "A validar link..." porque o listener de auth é registado **depois** de o Supabase já ter processado o URL de recuperação, e o evento de recuperação perde-se.
 
-Crio a sua conta e atribuo o role `admin` por SQL diretamente:
-- Cria utilizador `passos.rui@gmail.com` em `auth.users` com email já confirmado e palavra-passe inicial **temporária** que vou pedir-lhe para definir no próximo passo (ver questão abaixo).
-- Insere linha em `public.user_roles` com role `admin`.
+## Correção
 
-Assim que entrar pela primeira vez, deve trocar a password (ver ponto 3).
+### 1. `src/pages/ResetPassword.tsx` — deteção robusta da sessão de recuperação
 
-## 2. Endurecer a segurança (corrigir os 7 avisos do scan)
+Substituir a lógica atual por uma que:
 
-Atualmente o site **funciona**, mas o scan revelou pontos a apertar antes de partilhar. Faço uma migração que resolve tudo:
+- Lê o `window.location.hash` e `window.location.search` no início e deteta `type=recovery`, `access_token` ou `code`.
+- Se houver `code` (fluxo PKCE), chama `supabase.auth.exchangeCodeForSession(code)` explicitamente.
+- Se houver hash com `access_token` + `refresh_token`, chama `supabase.auth.setSession({ access_token, refresh_token })` como fallback.
+- Faz polling curto de `getSession()` (até 3s) para apanhar a sessão depois do processamento automático.
+- Se nada disto resultar em sessão válida, mostra mensagem de erro **clara** com link para pedir novo email — em vez de ficar preso.
+- Mantém o listener `onAuthStateChange` como rede de segurança.
 
-| Problema | Correção |
-|---|---|
-| Qualquer utilizador autenticado podia inserir-se a si próprio como `admin` (escalada de privilégios) | Adicionar política `INSERT/UPDATE/DELETE` em `user_roles` que exige `has_role(auth.uid(),'admin')`. Primeiro admin é semeado por SQL (ponto 1), nunca pela API. |
-| Signup público aberto (qualquer pessoa cria conta) | Desativar signup público em `Auth → Providers` e **remover o tab "Criar conta"** da página `/auth`. Só admins criam novos utilizadores. |
-| Bucket `gallery` permite listar todos os ficheiros | Manter leitura pública dos URLs (necessária para a galeria) mas remover a policy de LIST; INSERT/UPDATE/DELETE no bucket só para admin. |
-| `has_role` e `handle_new_user` executáveis por anónimos | `REVOKE EXECUTE ... FROM anon, authenticated` e conceder só a `service_role` / uso interno em policies. |
-| Política `INSERT` em `contact_submissions` com `WITH CHECK (true)` | Manter (é intencional — formulário público). Adicionar à *security memory* como risco aceite e proteger com **rate limiting** simples (limite por IP via edge function opcional, ou pelo menos validação Zod já existente + honeypot field). |
+### 2. Pequeno polish
 
-## 3. Fluxo de Password completo
+- Adicionar mensagem de erro visível com botão "Pedir novo link" (vai para `/forgot-password`) quando o link expirou ou é inválido.
+- Limpar o hash do URL após processar com sucesso (`window.history.replaceState`) para evitar reprocessamento.
 
-### a) Definir password inicial
-- Página `/auth` mostra apenas **Login** (sem criar conta).
-- Adiciono link **"Esqueci-me da palavra-passe"**.
+### 3. Aviso de console (opcional, mesmo PR)
 
-### b) Recuperar password (esqueci-me)
-- Nova página `/forgot-password`: formulário com email → `supabase.auth.resetPasswordForEmail(email, { redirectTo: <site>/reset-password })`.
-- Nova página `/reset-password` (rota pública): deteta sessão de recovery, mostra campo "nova password" + confirmação, chama `supabase.auth.updateUser({ password })`, redireciona para `/admin`.
+O aviso "Function components cannot be given refs" vem de `<Input>` em `Auth.tsx` e `ForgotPassword.tsx`. Já estamos a usar o componente shadcn `Input` que é `forwardRef`, por isso o aviso é provavelmente de outro elemento — verificar e corrigir se trivial; caso contrário, deixar para depois (não bloqueia a funcionalidade).
 
-### c) Alterar password estando autenticado
-- Nova secção no painel admin: **`/admin/account`** com:
-  - Mostra email atual.
-  - Formulário "Alterar password" (password atual → nova → confirmar). Usa `supabase.auth.updateUser({ password })`.
-  - Botão "Terminar sessão em todos os dispositivos" (`signOut({ scope: 'global' })`).
-- Adicionar item "Conta" na sidebar admin.
-
-### d) (Opcional, recomendado) Proteção contra passwords fracas
-- Ativar **leaked password protection (HIBP)** via `configure_auth` — bloqueia passwords comprovadamente expostas em fugas.
-
-## 4. Demonstração para o João
-
-Sugestão recomendada: **link "Share preview"** do Lovable.
-
-- Vou ao botão **Share → Share preview** no topo do editor → gera um link público válido **7 dias**, sem precisar de conta Lovable. Ideal para enviar pelo Instagram/WhatsApp.
-- O João abre no telemóvel, navega no site real, e envia-lhe sugestões.
-- O `/admin` continua protegido por login, por isso ele só vê a parte pública.
-
-Alternativas, caso queira algo mais permanente:
-- **Publicar** (botão Publish) → fica em `xxx.lovable.app` para sempre. Mais profissional mas qualquer pessoa pode encontrar (mesmo sem partilhar). Recomendo só depois de o João aprovar.
-- **Domínio próprio** (ex: `joaodedeus-petsitter.pt`) — comprável dentro do Lovable depois de publicar.
-
-Posso também preparar uma **mensagem-template** em português para enviar ao João via DM no Instagram.
-
-## 5. Resposta direta — "o site fica seguro?"
-
-Depois das correções acima: **sim, para o caso de uso** (site institucional com painel admin para 1 pessoa). Pontos garantidos:
-- Só `passos.rui@gmail.com` consegue entrar no `/admin`.
-- Ninguém pode auto-promover-se a admin.
-- Mensagens de contacto só visíveis ao admin.
-- Galeria e textos só editáveis pelo admin.
-- Passwords protegidas pelo Supabase (bcrypt) + opcionalmente HIBP.
-- Sem signup público.
-
-O único dado público escrito por estranhos é o **formulário de contacto** (intencional). Adicionamos validação + (opcional) honeypot anti-bot.
-
----
-
-### Decisões que preciso de si antes de implementar:
+## Detalhes técnicos
 
 ```text
-1. Password inicial: prefere…
-   a) Eu defino uma temporária (ex: "PetSitter2026!") e troca no 1º login
-   b) Não criar password — envio-lhe email de "definir password" para escolher logo a sua
-2. Ativar HIBP (bloqueia passwords vazadas)? Sim/Não
-3. Quer já que prepare a mensagem para enviar ao João pelo Instagram?
+Fluxo do link de email
+──────────────────────
+Email link → /reset-password?code=XXX  (ou #access_token=...&type=recovery)
+                ↓
+        ResetPassword monta
+                ↓
+   Detetar parâmetros no URL
+                ↓
+   ┌─ tem code? ──→ exchangeCodeForSession(code)
+   ├─ tem hash?  ──→ setSession({access, refresh})  (fallback)
+   └─ nada?      ──→ mostrar erro "link inválido"
+                ↓
+        ready = true → mostra form
 ```
+
+## Como testar
+
+1. Ir a `/forgot-password`, pedir email para `passos.rui@gmail.com`.
+2. Abrir email, clicar no link.
+3. Deve carregar o form "Nova palavra-passe" em < 2s.
+4. Definir nova password → redireciona para `/admin`.
+
+## Ficheiros alterados
+
+- `src/pages/ResetPassword.tsx` (reescrita da lógica de inicialização)
