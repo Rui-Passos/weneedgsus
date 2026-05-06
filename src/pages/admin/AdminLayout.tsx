@@ -13,9 +13,10 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { Image, FileText, MessageSquare, LogOut, PawPrint, Home, User } from "lucide-react";
+import { Image, FileText, MessageSquare, LogOut, PawPrint, Home, User, Calendar } from "lucide-react";
 
 const items = [
+  { title: "Marcações", url: "/admin/bookings", icon: Calendar },
   { title: "Galeria", url: "/admin/gallery", icon: Image },
   { title: "Conteúdos", url: "/admin/content", icon: FileText },
   { title: "Mensagens", url: "/admin/messages", icon: MessageSquare },
@@ -23,7 +24,7 @@ const items = [
 ];
 
 const AdminLayout = () => {
-  const { user, isAdmin, loading, signOut } = useAuth();
+  const { user, isAdmin, loading, adminError, signOut } = useAuth();
   const { pathname } = useLocation();
 
   if (loading) return <div className="min-h-screen flex items-center justify-center">A carregar...</div>;
@@ -34,9 +35,15 @@ const AdminLayout = () => {
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
         <PawPrint className="w-12 h-12 text-primary" />
         <h1 className="text-2xl font-bold">Sem acesso</h1>
-        <p className="text-muted-foreground max-w-md">
-          A sua conta ({user.email}) ainda não tem permissões de administrador. Contacte o responsável pelo site.
-        </p>
+        {adminError ? (
+          <p className="text-muted-foreground max-w-md">
+            Não foi possível verificar as suas permissões: {adminError}. Tente recarregar a página.
+          </p>
+        ) : (
+          <p className="text-muted-foreground max-w-md">
+            A sua conta ({user.email}) ainda não tem permissões de administrador. Contacte o responsável pelo site.
+          </p>
+        )}
         <Button onClick={signOut} variant="outline" className="rounded-full">Terminar sessão</Button>
       </div>
     );

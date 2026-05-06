@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
+import { Trash2, CalendarPlus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 interface Msg {
   id: string;
@@ -17,6 +18,27 @@ interface Msg {
 
 const AdminMessages = () => {
   const [msgs, setMsgs] = useState<Msg[]>([]);
+  const navigate = useNavigate();
+
+  const toBooking = async (m: Msg) => {
+    const { data, error } = await supabase
+      .from("bookings")
+      .insert({
+        client_name: m.name,
+        phone: m.phone,
+        pet_type: m.pet_type,
+        service: null,
+        start_at: new Date().toISOString(),
+        status: "pending",
+        notes: [m.dates ? `Datas pedidas: ${m.dates}` : null, m.message].filter(Boolean).join("\n\n"),
+        contact_submission_id: m.id,
+      })
+      .select("id")
+      .single();
+    if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
+    toast({ title: "Marcação criada", description: "Ajuste a data e o estado." });
+    navigate("/admin/bookings");
+  };
 
   const load = () =>
     supabase
@@ -66,7 +88,10 @@ const AdminMessages = () => {
                 <TableCell>{m.pet_type ?? "-"}</TableCell>
                 <TableCell>{m.dates ?? "-"}</TableCell>
                 <TableCell className="max-w-xs">{m.message ?? "-"}</TableCell>
-                <TableCell>
+                <TableCell className="text-right whitespace-nowrap">
+                  <Button size="sm" variant="ghost" title="Criar marcação" onClick={() => toBooking(m)}>
+                    <CalendarPlus className="w-4 h-4" />
+                  </Button>
                   <Button size="sm" variant="ghost" onClick={() => remove(m.id)}><Trash2 className="w-4 h-4" /></Button>
                 </TableCell>
               </TableRow>

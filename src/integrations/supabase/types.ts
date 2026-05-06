@@ -14,6 +14,59 @@ export type Database = {
   }
   public: {
     Tables: {
+      bookings: {
+        Row: {
+          client_name: string
+          contact_submission_id: string | null
+          created_at: string
+          end_at: string | null
+          id: string
+          notes: string | null
+          pet_type: string | null
+          phone: string
+          service: string | null
+          start_at: string
+          status: Database["public"]["Enums"]["booking_status"]
+          updated_at: string
+        }
+        Insert: {
+          client_name: string
+          contact_submission_id?: string | null
+          created_at?: string
+          end_at?: string | null
+          id?: string
+          notes?: string | null
+          pet_type?: string | null
+          phone: string
+          service?: string | null
+          start_at: string
+          status?: Database["public"]["Enums"]["booking_status"]
+          updated_at?: string
+        }
+        Update: {
+          client_name?: string
+          contact_submission_id?: string | null
+          created_at?: string
+          end_at?: string | null
+          id?: string
+          notes?: string | null
+          pet_type?: string | null
+          phone?: string
+          service?: string | null
+          start_at?: string
+          status?: Database["public"]["Enums"]["booking_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_contact_submission_id_fkey"
+            columns: ["contact_submission_id"]
+            isOneToOne: false
+            referencedRelation: "contact_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_submissions: {
         Row: {
           created_at: string
@@ -146,6 +199,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      booking_status: "pending" | "confirmed" | "completed" | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -274,6 +328,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      booking_status: ["pending", "confirmed", "completed", "cancelled"],
     },
   },
 } as const
