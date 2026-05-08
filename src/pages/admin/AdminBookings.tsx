@@ -43,6 +43,7 @@ interface Booking {
   end_at: string | null;
   status: Status;
   notes: string | null;
+  price: number | null;
   contact_submission_id: string | null;
   created_at: string;
 }
@@ -71,7 +72,12 @@ const emptyForm = {
   end_at: "",
   status: "pending" as Status,
   notes: "",
+  price: "",
 };
+
+const fmtEuro = (n: number) =>
+  new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR" }).format(n);
+
 
 const toLocalInput = (iso: string | null) => {
   if (!iso) return "";
