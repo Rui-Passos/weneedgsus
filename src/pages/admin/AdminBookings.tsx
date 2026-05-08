@@ -278,6 +278,17 @@ const AdminBookings = () => {
                     />
                   </div>
                   <div className="space-y-2 col-span-2">
+                    <Label>Valor (€)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0,00"
+                      value={form.price}
+                      onChange={(e) => setForm({ ...form, price: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2 col-span-2">
                     <Label>Estado</Label>
                     <Select
                       value={form.status}
