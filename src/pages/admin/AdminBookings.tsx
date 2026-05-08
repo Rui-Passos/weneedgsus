@@ -113,6 +113,29 @@ const AdminBookings = () => {
     [bookings, filter],
   );
 
+  const stats = useMemo(() => {
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${now.getMonth()}`;
+    const yearKey = now.getFullYear();
+    let monthCount = 0;
+    let monthRevenue = 0;
+    let yearRevenue = 0;
+    let pending = 0;
+    let confirmed = 0;
+    for (const b of bookings) {
+      const d = new Date(b.start_at);
+      const bm = `${d.getFullYear()}-${d.getMonth()}`;
+      if (bm === monthKey) monthCount++;
+      if (b.status === "completed") {
+        if (bm === monthKey) monthRevenue += Number(b.price ?? 0);
+        if (d.getFullYear() === yearKey) yearRevenue += Number(b.price ?? 0);
+      }
+      if (b.status === "pending") pending++;
+      if (b.status === "confirmed") confirmed++;
+    }
+    return { monthCount, monthRevenue, yearRevenue, pending, confirmed };
+  }, [bookings]);
+
   const openNew = () => {
     setForm(emptyForm);
     setOpen(true);
