@@ -314,7 +314,26 @@ const AdminBookings = () => {
                       onChange={(e) => setForm({ ...form, notes: e.target.value })}
                     />
                   </div>
-                </div>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-card rounded-2xl shadow-card p-4">
+          <p className="text-xs text-muted-foreground">Marcações este mês</p>
+          <p className="text-2xl font-bold mt-1">{stats.monthCount}</p>
+        </div>
+        <div className="bg-card rounded-2xl shadow-card p-4">
+          <p className="text-xs text-muted-foreground">Faturado este mês</p>
+          <p className="text-2xl font-bold mt-1">{fmtEuro(stats.monthRevenue)}</p>
+        </div>
+        <div className="bg-card rounded-2xl shadow-card p-4">
+          <p className="text-xs text-muted-foreground">Pendentes / Confirmadas</p>
+          <p className="text-2xl font-bold mt-1">{stats.pending} / {stats.confirmed}</p>
+        </div>
+        <div className="bg-card rounded-2xl shadow-card p-4">
+          <p className="text-xs text-muted-foreground">Faturado este ano</p>
+          <p className="text-2xl font-bold mt-1">{fmtEuro(stats.yearRevenue)}</p>
+        </div>
+      </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setOpen(false)}>
