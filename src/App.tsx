@@ -15,6 +15,8 @@ import AdminContent from "./pages/admin/AdminContent.tsx";
 import AdminMessages from "./pages/admin/AdminMessages.tsx";
 import AdminAccount from "./pages/admin/AdminAccount.tsx";
 import AdminBookings from "./pages/admin/AdminBookings.tsx";
+import AdminUsers from "./pages/admin/AdminUsers.tsx";
+import AdminReports from "./pages/admin/AdminReports.tsx";
 
 const queryClient = new QueryClient();
 
