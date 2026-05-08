@@ -354,6 +354,7 @@ const AdminBookings = () => {
               <TableHead>Cliente</TableHead>
               <TableHead>Telefone</TableHead>
               <TableHead>Serviço</TableHead>
+              <TableHead className="text-right">Valor</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
