@@ -129,6 +129,7 @@ const AdminBookings = () => {
       end_at: toLocalInput(b.end_at),
       status: b.status,
       notes: b.notes ?? "",
+      price: b.price != null ? String(b.price) : "",
     });
     setOpen(true);
   };
