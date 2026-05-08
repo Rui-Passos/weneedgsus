@@ -139,6 +139,11 @@ const AdminBookings = () => {
       toast({ title: "Preencha nome, telefone e data de início", variant: "destructive" });
       return;
     }
+    const priceNum = form.price.trim() ? Number(form.price.replace(",", ".")) : null;
+    if (priceNum != null && (isNaN(priceNum) || priceNum < 0)) {
+      toast({ title: "Valor inválido", variant: "destructive" });
+      return;
+    }
     const payload = {
       client_name: form.client_name.trim(),
       phone: form.phone.trim(),
@@ -148,6 +153,7 @@ const AdminBookings = () => {
       end_at: form.end_at ? new Date(form.end_at).toISOString() : null,
       status: form.status,
       notes: form.notes.trim() || null,
+      price: priceNum,
     };
     const res = form.id
       ? await supabase.from("bookings").update(payload).eq("id", form.id)
