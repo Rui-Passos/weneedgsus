@@ -372,6 +372,9 @@ const AdminBookings = () => {
                   </a>
                 </TableCell>
                 <TableCell>{b.service ?? "-"}</TableCell>
+                <TableCell className="text-right whitespace-nowrap">
+                  {b.price != null ? fmtEuro(Number(b.price)) : "-"}
+                </TableCell>
                 <TableCell>
                   <Select value={b.status} onValueChange={(v) => setStatus(b.id, v as Status)}>
                     <SelectTrigger className="w-[140px] h-8">
