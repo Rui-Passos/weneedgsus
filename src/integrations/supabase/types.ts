@@ -24,6 +24,7 @@ export type Database = {
           notes: string | null
           pet_type: string | null
           phone: string
+          price: number | null
           service: string | null
           start_at: string
           status: Database["public"]["Enums"]["booking_status"]
@@ -38,6 +39,7 @@ export type Database = {
           notes?: string | null
           pet_type?: string | null
           phone: string
+          price?: number | null
           service?: string | null
           start_at: string
           status?: Database["public"]["Enums"]["booking_status"]
@@ -52,6 +54,7 @@ export type Database = {
           notes?: string | null
           pet_type?: string | null
           phone?: string
+          price?: number | null
           service?: string | null
           start_at?: string
           status?: Database["public"]["Enums"]["booking_status"]

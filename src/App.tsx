@@ -15,6 +15,8 @@ import AdminContent from "./pages/admin/AdminContent.tsx";
 import AdminMessages from "./pages/admin/AdminMessages.tsx";
 import AdminAccount from "./pages/admin/AdminAccount.tsx";
 import AdminBookings from "./pages/admin/AdminBookings.tsx";
+import AdminUsers from "./pages/admin/AdminUsers.tsx";
+import AdminReports from "./pages/admin/AdminReports.tsx";
 
 const queryClient = new QueryClient();
 
@@ -33,9 +35,11 @@ const App = () => (
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<Navigate to="/admin/bookings" replace />} />
               <Route path="bookings" element={<AdminBookings />} />
+              <Route path="reports" element={<AdminReports />} />
               <Route path="gallery" element={<AdminGallery />} />
               <Route path="content" element={<AdminContent />} />
               <Route path="messages" element={<AdminMessages />} />
+              <Route path="users" element={<AdminUsers />} />
               <Route path="account" element={<AdminAccount />} />
             </Route>
             <Route path="*" element={<NotFound />} />

@@ -43,6 +43,7 @@ interface Booking {
   end_at: string | null;
   status: Status;
   notes: string | null;
+  price: number | null;
   contact_submission_id: string | null;
   created_at: string;
 }
@@ -71,7 +72,12 @@ const emptyForm = {
   end_at: "",
   status: "pending" as Status,
   notes: "",
+  price: "",
 };
+
+const fmtEuro = (n: number) =>
+  new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR" }).format(n);
+
 
 const toLocalInput = (iso: string | null) => {
   if (!iso) return "";
@@ -107,6 +113,29 @@ const AdminBookings = () => {
     [bookings, filter],
   );
 
+  const stats = useMemo(() => {
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${now.getMonth()}`;
+    const yearKey = now.getFullYear();
+    let monthCount = 0;
+    let monthRevenue = 0;
+    let yearRevenue = 0;
+    let pending = 0;
+    let confirmed = 0;
+    for (const b of bookings) {
+      const d = new Date(b.start_at);
+      const bm = `${d.getFullYear()}-${d.getMonth()}`;
+      if (bm === monthKey) monthCount++;
+      if (b.status === "completed") {
+        if (bm === monthKey) monthRevenue += Number(b.price ?? 0);
+        if (d.getFullYear() === yearKey) yearRevenue += Number(b.price ?? 0);
+      }
+      if (b.status === "pending") pending++;
+      if (b.status === "confirmed") confirmed++;
+    }
+    return { monthCount, monthRevenue, yearRevenue, pending, confirmed };
+  }, [bookings]);
+
   const openNew = () => {
     setForm(emptyForm);
     setOpen(true);
@@ -123,6 +152,7 @@ const AdminBookings = () => {
       end_at: toLocalInput(b.end_at),
       status: b.status,
       notes: b.notes ?? "",
+      price: b.price != null ? String(b.price) : "",
     });
     setOpen(true);
   };
@@ -130,6 +160,11 @@ const AdminBookings = () => {
   const save = async () => {
     if (!form.client_name.trim() || !form.phone.trim() || !form.start_at) {
       toast({ title: "Preencha nome, telefone e data de início", variant: "destructive" });
+      return;
+    }
+    const priceNum = form.price.trim() ? Number(form.price.replace(",", ".")) : null;
+    if (priceNum != null && (isNaN(priceNum) || priceNum < 0)) {
+      toast({ title: "Valor inválido", variant: "destructive" });
       return;
     }
     const payload = {
@@ -141,6 +176,7 @@ const AdminBookings = () => {
       end_at: form.end_at ? new Date(form.end_at).toISOString() : null,
       status: form.status,
       notes: form.notes.trim() || null,
+      price: priceNum,
     };
     const res = form.id
       ? await supabase.from("bookings").update(payload).eq("id", form.id)
@@ -242,6 +278,17 @@ const AdminBookings = () => {
                     />
                   </div>
                   <div className="space-y-2 col-span-2">
+                    <Label>Valor (€)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0,00"
+                      value={form.price}
+                      onChange={(e) => setForm({ ...form, price: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2 col-span-2">
                     <Label>Estado</Label>
                     <Select
                       value={form.status}
@@ -267,7 +314,26 @@ const AdminBookings = () => {
                       onChange={(e) => setForm({ ...form, notes: e.target.value })}
                     />
                   </div>
-                </div>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-card rounded-2xl shadow-card p-4">
+          <p className="text-xs text-muted-foreground">Marcações este mês</p>
+          <p className="text-2xl font-bold mt-1">{stats.monthCount}</p>
+        </div>
+        <div className="bg-card rounded-2xl shadow-card p-4">
+          <p className="text-xs text-muted-foreground">Faturado este mês</p>
+          <p className="text-2xl font-bold mt-1">{fmtEuro(stats.monthRevenue)}</p>
+        </div>
+        <div className="bg-card rounded-2xl shadow-card p-4">
+          <p className="text-xs text-muted-foreground">Pendentes / Confirmadas</p>
+          <p className="text-2xl font-bold mt-1">{stats.pending} / {stats.confirmed}</p>
+        </div>
+        <div className="bg-card rounded-2xl shadow-card p-4">
+          <p className="text-xs text-muted-foreground">Faturado este ano</p>
+          <p className="text-2xl font-bold mt-1">{fmtEuro(stats.yearRevenue)}</p>
+        </div>
+      </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setOpen(false)}>
@@ -288,6 +354,7 @@ const AdminBookings = () => {
               <TableHead>Cliente</TableHead>
               <TableHead>Telefone</TableHead>
               <TableHead>Serviço</TableHead>
+              <TableHead className="text-right">Valor</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
@@ -305,6 +372,9 @@ const AdminBookings = () => {
                   </a>
                 </TableCell>
                 <TableCell>{b.service ?? "-"}</TableCell>
+                <TableCell className="text-right whitespace-nowrap">
+                  {b.price != null ? fmtEuro(Number(b.price)) : "-"}
+                </TableCell>
                 <TableCell>
                   <Select value={b.status} onValueChange={(v) => setStatus(b.id, v as Status)}>
                     <SelectTrigger className="w-[140px] h-8">
@@ -331,7 +401,7 @@ const AdminBookings = () => {
             ))}
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                   Sem marcações.
                 </TableCell>
               </TableRow>

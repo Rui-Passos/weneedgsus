@@ -13,13 +13,15 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { Image, FileText, MessageSquare, LogOut, PawPrint, Home, User, Calendar } from "lucide-react";
+import { Image, FileText, MessageSquare, LogOut, PawPrint, Home, User, Calendar, BarChart3, Users } from "lucide-react";
 
 const items = [
   { title: "Marcações", url: "/admin/bookings", icon: Calendar },
+  { title: "Relatórios", url: "/admin/reports", icon: BarChart3 },
   { title: "Galeria", url: "/admin/gallery", icon: Image },
   { title: "Conteúdos", url: "/admin/content", icon: FileText },
   { title: "Mensagens", url: "/admin/messages", icon: MessageSquare },
+  { title: "Utilizadores", url: "/admin/users", icon: Users },
   { title: "Conta", url: "/admin/account", icon: User },
 ];
 
@@ -41,7 +43,7 @@ const AdminLayout = () => {
           </p>
         ) : (
           <p className="text-muted-foreground max-w-md">
-            A sua conta ({user.email}) ainda não tem permissões de administrador. Contacte o responsável pelo site.
+            A sua conta ({user.email}) ainda não tem permissões de administrador. Aguarde aprovação do responsável pelo site.
           </p>
         )}
         <Button onClick={signOut} variant="outline" className="rounded-full">Terminar sessão</Button>
