@@ -43,7 +43,7 @@ const AdminLayout = () => {
           </p>
         ) : (
           <p className="text-muted-foreground max-w-md">
-            A sua conta ({user.email}) ainda não tem permissões de administrador. Contacte o responsável pelo site.
+            A sua conta ({user.email}) ainda não tem permissões de administrador. Aguarde aprovação do responsável pelo site.
           </p>
         )}
         <Button onClick={signOut} variant="outline" className="rounded-full">Terminar sessão</Button>
