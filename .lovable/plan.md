@@ -1,58 +1,40 @@
-# Plano: Registo de admins + Relatórios financeiros
+# Tornar todo o site editável a partir do admin
 
-## 1. Registo aberto com aprovação
+## Objetivo
+Garantir que tu (e o João) podem editar **todos os textos, imagens, contactos e rodapé** do site público a partir da área de admin, sem mexer em código.
 
-**Fluxo**
-- Em `/auth`, adicionar separador **"Criar conta"** ao lado de "Entrar" (email + password + nome).
-- Após registo, o utilizador fica autenticado mas **sem role de admin** → ao tentar entrar em `/admin` vê uma nova mensagem: *"Conta criada. A aguardar aprovação do administrador."* (em vez do "Sem acesso" atual).
-- Criar nova página **`/admin/utilizadores`** (visível só para ti) com a lista de todos os utilizadores registados, mostrando: nome, email, data de registo, estado (admin / pendente). Botões para **Tornar admin** e **Remover admin**.
-- Notificação visual no menu lateral (badge) quando houver utilizadores pendentes.
+## O que vai mudar
 
-## 2. Preços nas marcações
+### 1. Conteúdos da página pública passam a ler da base de dados
+Atualmente os componentes `Hero`, `About`, `Services`, `InstagramFeed`, `Contact` e `Footer` têm texto e imagens fixas no código. Vão passar todos a ler da tabela `site_content` (que já existe).
 
-Adicionar campo **`price`** (valor em €) à tabela `bookings`. No formulário de criar/editar marcação passa a haver um campo "Valor (€)". Mostrado também na tabela existente.
+Enquanto não houver conteúdo guardado, mostram os valores atuais como predefinição (assim o site nunca aparece vazio).
 
-## 3. Dashboard no topo de Marcações
+### 2. Página `/admin/content` reformulada
+Em vez do formulário simples atual, passa a ter uma secção por área do site, cada uma com **textos + upload de imagem(ns)**:
 
-4 cards rápidos acima da tabela:
-- Marcações este mês (contagem)
-- Faturado este mês (soma de `price` de marcações concluídas)
-- Pendentes / Confirmadas (contagem)
-- Total faturado no ano
+- **Hero** (topo): badge, título, subtítulo, texto do botão, foto principal
+- **Sobre o João**: título, 2 parágrafos, handle Instagram, foto do João, texto do badge "+5 anos"
+- **Serviços**: título e subtítulo da secção + lista editável de serviços (adicionar/remover/reordenar, cada um com ícone escolhido de uma lista, título, descrição, imagem)
+- **Instagram**: handle, descrição + 6 imagens de preview (upload)
+- **Contactos**: email, telemóvel, WhatsApp, morada/zona
+- **Rodapé**: nome a mostrar, link Instagram, texto do copyright
 
-## 4. Nova página Relatórios (`/admin/relatorios`)
+### 3. Nova bucket de storage `site-images`
+Para guardar todas as imagens das secções (separada da `gallery` que é só para a galeria pública). Pública para leitura, só admins podem fazer upload.
 
-Filtros no topo (todos combináveis):
-- **Intervalo de datas** (de / até, com date pickers)
-- **Estado** (pendente / confirmada / concluída / cancelada / todas)
-- **Serviço** (dropdown com os serviços que existirem nas marcações)
-- **Tipo de pet**
-
-Resultados:
-- **KPIs**: nº de marcações, total faturado, ticket médio
-- **Gráfico de barras**: faturação por mês no período escolhido
-- **Gráfico circular**: distribuição por serviço
-- **Tabela detalhada** com todas as marcações que passam nos filtros
-
-Botão **"Exportar PDF"** no canto superior direito → gera PDF com cabeçalho (Casa do Cão + período + filtros aplicados), KPIs, gráficos renderizados como imagens, e a tabela detalhada. Descarrega como `relatorio-YYYY-MM-DD.pdf`.
-
----
+### 4. Seed inicial
+Carrego em `site_content` os textos e URLs de imagens atuais como ponto de partida — assim quando abrires `/admin/content` já vês tudo preenchido e só editas o que quiseres mudar.
 
 ## Detalhes técnicos
 
-**Base de dados (migração)**
-- `ALTER TABLE bookings ADD COLUMN price numeric(10,2)`
-- Sem alterações a roles/RLS (já existem políticas admin).
+- **Sem alterações de schema** na tabela `site_content` (já é `jsonb`, dá para guardar qualquer estrutura). Acrescento apenas as novas chaves: `hero`, `about`, `services`, `instagram`, `contact`, `footer`.
+- **Migração**: criar bucket `site-images` (pública) + 3 policies (insert/update/delete só para admins, select público).
+- **Hook novo `useSiteContent(sectionKey)`**: lê da tabela com fallback para defaults — usado por todos os componentes públicos.
+- **`AdminContent.tsx`** reescrito com tabs (uma por secção), incluindo um sub-componente `ImageUploader` reutilizável que faz upload para `site-images` e devolve URL pública.
+- **Editor de serviços**: lista com drag-to-reorder simples (botões ↑↓), botão "Adicionar serviço", seletor de ícone a partir de ~12 ícones lucide pré-selecionados (PawPrint, Footprints, Home, Hotel, Heart, etc.).
+- **Componentes a editar**: `Hero.tsx`, `About.tsx`, `Services.tsx`, `InstagramFeed.tsx`, `Contact.tsx`, `Footer.tsx` — cada um passa a usar o hook.
+- **Sem alterações** ao fluxo de auth, marcações, relatórios, galeria ou utilizadores.
 
-**Frontend**
-- `src/pages/Auth.tsx` — adicionar tabs Login/Registo usando shadcn Tabs.
-- `src/hooks/useAuth.tsx` — distinguir "não autenticado" vs "autenticado sem role" para mostrar mensagem certa.
-- `src/pages/admin/AdminUsers.tsx` (novo) — lista profiles + user_roles, botões para promover/despromover.
-- `src/pages/admin/AdminBookings.tsx` — adicionar campo preço no form e coluna na tabela; cards de resumo no topo.
-- `src/pages/admin/AdminReports.tsx` (novo) — filtros, KPIs, charts (recharts já disponível), botão exportar.
-- `src/pages/admin/AdminLayout.tsx` + `src/App.tsx` — registar rotas `/admin/utilizadores` e `/admin/relatorios`.
-
-**Exportação PDF**
-- Usar `jspdf` + `html2canvas` (capturar a área de relatório já renderizada → embeber no PDF). Alternativa mais limpa: `jspdf` + `jspdf-autotable` para tabela e capturar só os gráficos como imagem com `html2canvas`. Vou optar por esta segunda abordagem para o PDF ficar com texto pesquisável.
-
-**Confirmação necessária antes de implementar**: a migração adiciona a coluna `price` (nullable, sem default) — marcações antigas ficam sem preço até as editares. OK assim?
+## Resultado
+Depois disto, qualquer pessoa com acesso de admin consegue mudar 100% do conteúdo visível do site (texto e imagens) sem editar código.
