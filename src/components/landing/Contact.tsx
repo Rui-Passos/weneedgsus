@@ -6,7 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import { PawPrint, Send } from "lucide-react";
+import { PawPrint, Send, Mail, Phone, MapPin, MessageCircle } from "lucide-react";
+import { useSiteContent } from "@/hooks/useSiteContent";
+import { defaults } from "@/lib/siteDefaults";
 
 const schema = z.object({
   name: z.string().trim().min(2, "Nome muito curto").max(100),
@@ -17,6 +19,7 @@ const schema = z.object({
 });
 
 const Contact = () => {
+  const c = useSiteContent("contact", defaults.contact);
   const [loading, setLoading] = useState(false);
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -50,14 +53,40 @@ const Contact = () => {
     (e.target as HTMLFormElement).reset();
   };
 
+  const hasInfo = c.email || c.phone || c.whatsapp || c.area;
+
   return (
     <section id="contacto" className="py-20 bg-background">
       <div className="container max-w-3xl">
         <div className="text-center mb-10">
-          <span className="text-sm font-bold text-primary uppercase tracking-wider">Contacto</span>
-          <h2 className="text-3xl md:text-5xl font-bold mt-2">Vamos cuidar do seu pet?</h2>
-          <p className="text-muted-foreground mt-4">Preencha o formulário e o João responde-lhe rapidamente.</p>
+          <span className="text-sm font-bold text-primary uppercase tracking-wider">{c.eyebrow}</span>
+          <h2 className="text-3xl md:text-5xl font-bold mt-2">{c.title}</h2>
+          <p className="text-muted-foreground mt-4">{c.subtitle}</p>
         </div>
+        {hasInfo && (
+          <div className="grid sm:grid-cols-2 gap-3 mb-8">
+            {c.email && (
+              <a href={`mailto:${c.email}`} className="flex items-center gap-3 bg-card rounded-2xl p-4 shadow-soft hover:shadow-card transition-shadow">
+                <Mail className="w-5 h-5 text-primary" /> <span className="text-sm">{c.email}</span>
+              </a>
+            )}
+            {c.phone && (
+              <a href={`tel:${c.phone}`} className="flex items-center gap-3 bg-card rounded-2xl p-4 shadow-soft hover:shadow-card transition-shadow">
+                <Phone className="w-5 h-5 text-primary" /> <span className="text-sm">{c.phone}</span>
+              </a>
+            )}
+            {c.whatsapp && (
+              <a href={`https://wa.me/${c.whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 bg-card rounded-2xl p-4 shadow-soft hover:shadow-card transition-shadow">
+                <MessageCircle className="w-5 h-5 text-primary" /> <span className="text-sm">WhatsApp: {c.whatsapp}</span>
+              </a>
+            )}
+            {c.area && (
+              <div className="flex items-center gap-3 bg-card rounded-2xl p-4 shadow-soft">
+                <MapPin className="w-5 h-5 text-primary" /> <span className="text-sm">{c.area}</span>
+              </div>
+            )}
+          </div>
+        )}
         <form onSubmit={onSubmit} className="bg-card rounded-3xl p-6 md:p-10 shadow-card space-y-5">
           <div className="grid md:grid-cols-2 gap-5">
             <div className="space-y-2">
