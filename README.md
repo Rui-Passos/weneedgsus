@@ -1,10 +1,12 @@
-# Welcome to your Lovable project
-
 # 🐾 weneedgsus — João de Deus · Pet Sitter de Confiança
 
 Site pessoal do pet sitter João de Deus, construído com React e Supabase. Permite que clientes conheçam os serviços, agendem cuidados para os seus animais e contactem diretamente o pet sitter. Inclui também uma área de administração completa para gestão de reservas, galeria, conteúdo e mensagens.
 
-🌐 **Site publicado:** [weneedgsus.lovable.app](https://weneedgsus.lovable.app)
+O meu papel: design visual e front-end. O projecto começou no Lovable e foi depois migrado para a Vercel, sem a marca do Lovable.
+
+> **Estado:** projecto feito para um cliente, que acabou por decidir não lançar o site. Fica online como demonstração.
+
+🌐 **Demo:** [weneedgsus.vercel.app](https://weneedgsus.vercel.app)
 📸 **Instagram:** [@weneedgsus](https://www.instagram.com/weneedgsus)
 
 ---
